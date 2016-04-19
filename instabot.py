@@ -8,7 +8,10 @@ import atexit
 import signal
 import itertools
 
-class InstaBot:
+from logable import Logable
+from user import User
+
+class InstaBot(Logable):
     """
     Instagram bot v 1.0
     like_per_day=1000 - How many likes set bot in one day.
@@ -36,12 +39,6 @@ class InstaBot:
     url_comment = 'https://www.instagram.com/web/comments/%s/add/'
     url_follow = 'https://www.instagram.com/web/friendships/%s/follow/'
     url_unfollow = 'https://www.instagram.com/web/friendships/%s/unfollow/'
-    url_login = 'https://www.instagram.com/accounts/login/ajax/'
-    url_logout = 'https://www.instagram.com/accounts/logout/'
-
-    user_agent = ("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
-    accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
 
     # If instagram ban you - query return 400 error.
     error_400 = 0
@@ -82,6 +79,9 @@ class InstaBot:
                 max_like_for_one_tag = 5,
                 log_mod = 0):
 
+
+        super(InstaBot, self).__init__()
+
         self.time_in_day = 24*60*60
         # Like
         self.like_per_day = like_per_day
@@ -113,13 +113,11 @@ class InstaBot:
         self.tag_list = tag_list
         # Get random tag, from tag_list, and like (1 to n) times.
         self.max_like_for_one_tag = max_like_for_one_tag
-        # log_mod 0 to console, 1 to file
-        self.log_mod = log_mod
 
         self.s = requests.Session()
-        # convert login to lower
-        self.user_login = login.lower()
-        self.user_password = password
+
+        # create a new user and log the user into the session
+        self.user = User(self.s, login, password)
 
         self.media_by_tag = []
 
@@ -127,7 +125,7 @@ class InstaBot:
         log_string = 'Insta Bot v1.0 start at %s:' %\
                      (now_time.strftime("%d.%m.%Y %H:%M"))
         self.write_log(log_string)
-        self.login()
+        self.user.login()
 
         signal.signal(signal.SIGTERM, self.cleanup)
         atexit.register(self.cleanup)
@@ -144,61 +142,6 @@ class InstaBot:
         # Logout
         if (self.login_status):
             self.logout()
-
-    def login(self):
-        log_string = 'Try to login by %s...' % (self.user_login)
-        self.write_log(log_string)
-        self.s.cookies.update ({'sessionid' : '', 'mid' : '', 'ig_pr' : '1',
-                               'ig_vw' : '1920', 'csrftoken' : '',
-                               's_network' : '', 'ds_user_id' : ''})
-        self.login_post = {'username' : self.user_login,
-                           'password' : self.user_password}
-        self.s.headers.update ({'Accept-Encoding' : 'gzip, deflate',
-                               'Accept-Language' : self.accept_language,
-                               'Connection' : 'keep-alive',
-                               'Content-Length' : '0',
-                               'Host' : 'www.instagram.com',
-                               'Origin' : 'https://www.instagram.com',
-                               'Referer' : 'https://www.instagram.com/',
-                               'User-Agent' : self.user_agent,
-                               'X-Instagram-AJAX' : '1',
-                               'X-Requested-With' : 'XMLHttpRequest'})
-        r = self.s.get(self.url)
-        self.s.headers.update({'X-CSRFToken' : r.cookies['csrftoken']})
-        time.sleep(5 * random.random())
-        login = self.s.post(self.url_login, data=self.login_post,
-                            allow_redirects=True)
-        self.s.headers.update({'X-CSRFToken' : login.cookies['csrftoken']})
-        self.csrftoken = login.cookies['csrftoken']
-        time.sleep(5 * random.random())
-
-        if login.status_code == 200:
-            r = self.s.get('https://www.instagram.com/')
-            finder = r.text.find(self.user_login)
-            if finder != -1:
-                self.login_status = True
-                log_string = 'Look like login by %s success!' % (self.user_login)
-                self.write_log(log_string)
-            else:
-                self.login_status = False
-                self.write_log('Login error! Check your login data!')
-        else:
-            self.write_log('Login error! Connection error!')
-
-    def logout(self):
-        now_time = datetime.datetime.now()
-        log_string = 'Logout: likes - %i, follow - %i, unfollow - %i, comments - %i.' %\
-                     (self.like_counter, self.follow_counter,
-                      self.unfollow_counter, self.comments_counter)
-        self.write_log(log_string)
-
-        try:
-            logout_post = {'csrfmiddlewaretoken' : self.csrftoken}
-            logout = self.s.post(self.url_logout, data=logout_post)
-            self.write_log("Logout success!")
-            self.login_status = False
-        except:
-            self.write_log("Logout error!")
 
     def get_media_id_by_tag (self, tag):
         """ Get media ID set, by your hashtag """
@@ -468,32 +411,3 @@ class InstaBot:
         for s, r in repl:
             res = res.replace(s, r)
         return res.capitalize()
-
-    def write_log(self, log_text):
-        """ Write log by print() or logger """
-
-        if self.log_mod == 0:
-            try:
-                print(log_text)
-            except UnicodeEncodeError:
-                print("Your text has unicode problem!")
-        elif self.log_mod == 1:
-            # Create log_file if not exist.
-            if self.log_file == 0:
-                self.log_file = 1
-                now_time = datetime.datetime.now()
-                self.log_full_path = '%s%s_%s.log' % (self.log_file_path,
-                                     self.user_login,
-                                     now_time.strftime("%d.%m.%Y_%H:%M"))
-                formatter = logging.Formatter('%(asctime)s - %(name)s '
-                            '- %(message)s')
-                self.logger = logging.getLogger(self.user_login)
-                self.hdrl = logging.FileHandler(self.log_full_path, mode='w')
-                self.hdrl.setFormatter(formatter)
-                self.logger.setLevel(level=logging.INFO)
-                self.logger.addHandler(self.hdrl)
-            # Log to log file.
-            try:
-                self.logger.info(log_text)
-            except UnicodeEncodeError:
-                print("Your text has unicode problem!")
