@@ -1,0 +1,10 @@
+URL = 'https://www.instagram.com'
+URL_LOGIN = URL + '/accounts/login/ajax/'
+URL_LOGOUT = URL + '/accounts/logout/'
+
+URL_TAG = URL + '/explore/tags/'
+URL_LIKE = URL + '/web/likes/%s/like/'
+URL_UNLIKE = URL + '/web/likes/%s/unlike/'
+URL_COMMENT = URL + '/web/comments/%s/add/'
+URL_FOLLOW = URL + '/web/friendships/%s/follow/'
+URL_UNFOLLOW = URL + '/web/friendships/%s/unfollow/'

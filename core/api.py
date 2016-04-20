@@ -3,6 +3,8 @@ import logging
 import random
 import time
 
+from settings import *
+
 logger = logging.getLogger(__name__)
 
 
@@ -10,13 +12,6 @@ class API(object):
     def __init__(self, user):
         super(API, self).__init__()
         self.user = user
-        self.url_tag = 'https://www.instagram.com/explore/tags/'
-        self.url_likes = 'https://www.instagram.com/web/likes/%s/like/'
-        self.url_unlike = 'https://www.instagram.com/web/likes/%s/unlike/'
-        self.url_comment = 'https://www.instagram.com/web/comments/%s/add/'
-        self.url_follow = 'https://www.instagram.com/web/friendships/%s/follow/'
-        self.url_unfollow = 'https://www.instagram.com/web/friendships/%s/unfollow/'
-
         # If instagram ban you - query return 400 error.
         self.error_400 = 0
         # If you have 3 in row 400 error - look like you banned.
@@ -31,7 +26,7 @@ class API(object):
             log_string = "Get media id by tag: %s" % (tag)
             logger.info(log_string)
             if self.user.login_status == 1:
-                built_url_tag = '%s%s%s' % (self.url_tag, tag, '/')
+                built_url_tag = '%s%s%s' % (URL_TAG, tag, '/')
                 try:
                     r = self.user.session.get(built_url_tag)
                     text = r.text
@@ -115,7 +110,7 @@ class API(object):
     def like(self, media_id):
         """ Send http request to like media by ID """
         if self.user.login_status:
-            url_likes = self.url_likes % media_id
+            url_likes = URL_LIKE % media_id
             try:
                 like = self.user.session.post(url_likes)
                 last_liked_media_id = media_id
@@ -127,7 +122,7 @@ class API(object):
     def unlike(self, media_id):
         """ Send http request to unlike media by ID """
         if self.user.login_status:
-            url_unlike = self.url_unlike % media_id
+            url_unlike = URL_UNLIKE % media_id
             try:
                 unlike = self.user.session.post(url_unlike)
             except:
@@ -139,7 +134,7 @@ class API(object):
         """ Send http request to comment """
         if self.user.login_status:
             comment_post = {'comment_text': comment_text}
-            url_comment = self.url_comment % media_id
+            url_comment = URL_COMMENT % media_id
             try:
                 comment = self.user.session.post(url_comment, data=comment_post)
                 if comment.status_code == 200:
@@ -154,7 +149,7 @@ class API(object):
     def follow(self, user_id):
         """ Send http request to follow """
         if self.user.login_status:
-            url_follow = self.url_follow % user_id
+            url_follow = URL_FOLLOW % user_id
             try:
                 follow = self.user.session.post(url_follow)
                 if follow.status_code == 200:
@@ -169,7 +164,7 @@ class API(object):
     def unfollow(self, user_id):
         """ Send http request to unfollow """
         if self.user.login_status:
-            url_unfollow = self.url_unfollow % user_id
+            url_unfollow = URL_UNFOLLOW % user_id
             try:
                 unfollow = self.user.session.post(url_unfollow)
                 if unfollow.status_code == 200:

@@ -2,9 +2,7 @@ import logging
 import random
 import time
 
-url = 'https://www.instagram.com/'
-url_login = 'https://www.instagram.com/accounts/login/ajax/'
-url_logout = 'https://www.instagram.com/accounts/logout/'
+from settings import *
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +43,10 @@ class User(object):
                                      'X-Requested-With': 'XMLHttpRequest'})
         login_post = {'username': self.username,
                       'password': self.password}
-        r = self.session.get(url)
+        r = self.session.get(URL)
         self.session.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
         time.sleep(5 * random.random())
-        login = self.session.post(url_login, data=login_post,
+        login = self.session.post(URL_LOGIN, data=login_post,
                                   allow_redirects=True)
         self.session.headers.update({'X-CSRFToken': login.cookies['csrftoken']})
         self.csrftoken = login.cookies['csrftoken']
@@ -75,7 +73,7 @@ class User(object):
 
         try:
             logout_post = {'csrfmiddlewaretoken': self.csrftoken}
-            self.session.post(url_logout, data=logout_post)
+            self.session.post(URL_LOGOUT, data=logout_post)
             logger.info("Logout success!")
             self.login_status = False
         except:
