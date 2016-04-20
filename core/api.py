@@ -1,11 +1,12 @@
 import json
+import logging
 import random
 import time
 
-from logable import Logable
+logger = logging.getLogger(__name__)
 
 
-class API(Logable):
+class API(object):
     def __init__(self, user):
         super(API, self).__init__()
         self.user = user
@@ -28,7 +29,7 @@ class API(Logable):
 
         if self.user.login_status:
             log_string = "Get media id by tag: %s" % (tag)
-            self.write_log(log_string)
+            logger.info(log_string)
             if self.user.login_status == 1:
                 built_url_tag = '%s%s%s' % (self.url_tag, tag, '/')
                 try:
@@ -48,7 +49,7 @@ class API(Logable):
 
                     return list(all_data['entry_data']['TagPage'][0]['tag']['media']['nodes'])
                 except:
-                    self.write_log("Exept on get_media!")
+                    logger.info("Exept on get_media!")
                     time.sleep(60)
                     return []
             else:
@@ -70,7 +71,7 @@ class API(Logable):
                                 (media_min_like == 0 and l_c <= media_max_like) or
                                 (media_min_like == 0 and media_max_like == 0)):
                             log_string = "Try to like media: %s" % media_by_tag[i]['id']
-                            self.write_log(log_string)
+                            logger.info(log_string)
                             like = self.like(media_by_tag[i]['id'])
                             # comment = self.comment(self.media_by_tag[i]['id'], 'Cool!')
                             # follow = self.follow(self.media_by_tag[i]["owner"]["id"])
@@ -81,10 +82,10 @@ class API(Logable):
                                     self.user.like_counter += 1
                                     log_string = "Liked: %s. Like #%i." % \
                                                  (media_by_tag[i]['id'], self.user.like_counter)
-                                    self.write_log(log_string)
+                                    logger.info(log_string)
                                 elif like.status_code == 400:
                                     log_string = "Not liked: %i" % like.status_code
-                                    self.write_log(log_string)
+                                    logger.info(log_string)
                                     # Some error. If repeated - can be ban!
                                     if self.error_400 >= self.error_400_to_ban:
                                         # Look like you banned!
@@ -93,7 +94,7 @@ class API(Logable):
                                         self.error_400 += 1
                                 else:
                                     log_string = "Not liked: %i" % like.status_code
-                                    self.write_log(log_string)
+                                    logger.info(log_string)
                                     return False
                                     # Some error.
                                 i += 1
@@ -109,7 +110,7 @@ class API(Logable):
                     else:
                         return False
             else:
-                self.write_log("No media to like!")
+                logger.info("No media to like!")
 
     def like(self, media_id):
         """ Send http request to like media by ID """
@@ -119,7 +120,7 @@ class API(Logable):
                 like = self.user.session.post(url_likes)
                 last_liked_media_id = media_id
             except:
-                self.write_log("Exept on like!")
+                logger.info("Exept on like!")
                 like = 0
             return like
 
@@ -130,7 +131,7 @@ class API(Logable):
             try:
                 unlike = self.user.session.post(url_unlike)
             except:
-                self.write_log("Exept on unlike!")
+                logger.info("Exept on unlike!")
                 unlike = 0
             return unlike
 
@@ -144,10 +145,10 @@ class API(Logable):
                 if comment.status_code == 200:
                     self.user.comments_counter += 1
                     log_string = 'Write: "%s". #%i.' % (comment_text, self.user.comments_counter)
-                    self.write_log(log_string)
+                    logger.info(log_string)
                 return comment
             except:
-                self.write_log("Exept on comment!")
+                logger.info("Exept on comment!")
         return False
 
     def follow(self, user_id):
@@ -159,10 +160,10 @@ class API(Logable):
                 if follow.status_code == 200:
                     self.user.follow_counter += 1
                     log_string = "Follow: %s #%i." % (user_id, self.user.follow_counter)
-                    self.write_log(log_string)
+                    logger.info(log_string)
                 return follow
             except:
-                self.write_log("Exept on follow!")
+                logger.info("Exept on follow!")
         return False
 
     def unfollow(self, user_id):
@@ -174,8 +175,8 @@ class API(Logable):
                 if unfollow.status_code == 200:
                     self.user.unfollow_counter += 1
                     log_string = "Unfollow: %s #%i." % (user_id, self.user.unfollow_counter)
-                    self.write_log(log_string)
+                    logger.info(log_string)
                 return unfollow
             except:
-                self.write_log("Exept on unfollow!")
+                logger.info("Exept on unfollow!")
         return False
