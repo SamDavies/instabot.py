@@ -8,6 +8,8 @@ import time
 
 import requests
 
+from bots.bots import FollowBot
+from bots.media import Media
 from core.api import API
 from core.user import User
 
@@ -118,24 +120,23 @@ class InstaBot(object):
             self.user.logout()
 
     def new_auto_mod(self):
-        while True:
-            # ------------------- Get media_id -------------------
-            if len(self.media_by_tag) == 0:
-                self.media_by_tag = self.API.get_media_id_by_tag(random.choice(self.tag_list))
-                self.this_tag_like_count = 0
-                self.max_tag_like_count = random.randint(1, self.max_like_for_one_tag)
-            # ------------------- Like -------------------
-            self.new_auto_mod_like()
-            # ------------------- Follow -------------------
-            self.new_auto_mod_follow()
-            # ------------------- Unfollow -------------------
-            self.new_auto_mod_unfollow()
-            # ------------------- Comment -------------------
-            self.new_auto_mod_comments()
+        # ------------------- Get media_id -------------------
+        if len(self.media_by_tag) == 0:
+            self.media_by_tag = self.API.get_media_id_by_tag(random.choice(self.tag_list))
+        # ------------------- Like -------------------
+        self.new_auto_mod_like()
+        # ------------------- Follow -------------------
+        media = Media(self.user, self.tag_list)
+        follow_bot = FollowBot(media, self.user)
+        follow_bot.run(3)
+        # self.new_auto_mod_follow()
+        # ------------------- Unfollow -------------------
+        self.new_auto_mod_unfollow()
+        # ------------------- Comment -------------------
+        self.new_auto_mod_comments()
 
-            # Bot iteration in 1 sec
-            time.sleep(3)
-            # print("Tic!")
+        # Bot iteration in 1 sec
+        # print("Tic!")
 
     def new_auto_mod_like(self):
         if time.time() > self.next_iteration["Like"] and self.like_per_day != 0 \
@@ -145,11 +146,7 @@ class InstaBot(object):
                 # If like go to sleep:
                 self.next_iteration["Like"] = time.time() + self.add_time(self.like_delay)
                 # Count this tag likes:
-                self.this_tag_like_count += 1
-                if self.this_tag_like_count >= self.max_tag_like_count:
-                    self.media_by_tag = [0]
-            # Del first media_id
-            del self.media_by_tag[0]
+                self.media_by_tag = []
 
     def new_auto_mod_follow(self):
         if time.time() > self.next_iteration["Follow"] and \
