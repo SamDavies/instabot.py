@@ -8,8 +8,8 @@ import time
 
 import requests
 
-from bots.bots import FollowBot
-from bots.media import Media
+from bots.bots import FollowBot, LikeBot, CommentBot
+from bots.media import Media, CommentMaker
 from core.api import API
 from core.user import User
 
@@ -123,42 +123,25 @@ class InstaBot(object):
         # ------------------- Get media_id -------------------
         if len(self.media_by_tag) == 0:
             self.media_by_tag = self.API.get_media_id_by_tag(random.choice(self.tag_list))
-        # ------------------- Like -------------------
-        self.new_auto_mod_like()
-        # ------------------- Follow -------------------
+
         media = Media(self.user, self.tag_list)
-        follow_bot = FollowBot(media, self.user)
+        # ------------------- Like -------------------
+        like_bot = LikeBot(self.user, media, self.media_max_like, self.media_min_like)
+        like_bot.run(3)
+        # ------------------- Follow -------------------
+        follow_bot = FollowBot(self.user, media)
         follow_bot.run(3)
-        # self.new_auto_mod_follow()
-        # ------------------- Unfollow -------------------
-        self.new_auto_mod_unfollow()
         # ------------------- Comment -------------------
-        self.new_auto_mod_comments()
+        comment_maker = CommentMaker()
+        comment_bot = CommentBot(self.user, media, comment_maker)
+        comment_bot.run(3)
+        # ------------------- Unfollow All -------------------
+        self.new_auto_mod_unfollow()
+        # ------------------- Unfollow Non Folbacks -------------------
+        # self.new_auto_mod_unfollow()
 
         # Bot iteration in 1 sec
         # print("Tic!")
-
-    def new_auto_mod_like(self):
-        if time.time() > self.next_iteration["Like"] and self.like_per_day != 0 \
-                and len(self.media_by_tag) > 0:
-            # You have media_id to like:
-            if self.API.like_all_exist_media(self.media_by_tag, self.media_max_like, self.media_min_like, media_size=1):
-                # If like go to sleep:
-                self.next_iteration["Like"] = time.time() + self.add_time(self.like_delay)
-                # Count this tag likes:
-                self.media_by_tag = []
-
-    def new_auto_mod_follow(self):
-        if time.time() > self.next_iteration["Follow"] and \
-                        self.follow_per_day != 0 and len(self.media_by_tag) > 0:
-
-            log_string = "Try to follow: %s" % (self.media_by_tag[0]["owner"]["id"])
-            logger.info(log_string)
-
-            if self.API.follow(self.media_by_tag[0]["owner"]["id"]):
-                self.bot_follow_list.append([self.media_by_tag[0]["owner"]["id"],
-                                             time.time()])
-                self.next_iteration["Follow"] = time.time() + self.add_time(self.follow_delay)
 
     def new_auto_mod_unfollow(self):
         if time.time() > self.next_iteration["Unfollow"] and \
@@ -173,38 +156,8 @@ class InstaBot(object):
                         self.bot_follow_list.remove(f)
                         self.next_iteration["Unfollow"] = time.time() + self.add_time(self.unfollow_delay)
 
-    def new_auto_mod_comments(self):
-        if time.time() > self.next_iteration["Comments"] and self.comments_per_day != 0 \
-                and len(self.media_by_tag) > 0:
-
-            comment_text = self.generate_comment()
-            log_string = "Try to comment: %s" % (self.media_by_tag[0]['id'])
-            logger.info(log_string)
-            if self.API.comment(self.media_by_tag[0]['id'], comment_text):
-                self.next_iteration["Comments"] = time.time() + \
-                                                  self.add_time(self.comments_delay)
-
     def add_time(self, time):
         """ Make some random for next iteration"""
         return time * 0.9 + time * 0.2 * random.random()
 
-    def generate_comment(self):
-        c_list = list(itertools.product(
-                ["this", "the", "your"],
-                ["photo", "picture", "pic", "shot", "snapshot"],
-                ["is", "looks", "feels", "is really"],
-                ["great", "super", "good", "very good",
-                 "good", "wow", "WOW", "cool",
-                 "GREAT", "magnificent", "magical", "very cool",
-                 "stylish", "so stylish", "beautiful",
-                 "so beautiful", "so stylish", "so professional",
-                 "lovely", "so lovely", "very lovely",
-                 "glorious", "so glorious", "very glorious",
-                 "adorable", "excellent", "amazing"],
-                [".", "..", "...", "!", "!!", "!!!"]))
 
-        repl = [("  ", " "), (" .", "."), (" !", "!")]
-        res = " ".join(random.choice(c_list))
-        for s, r in repl:
-            res = res.replace(s, r)
-        return res.capitalize()

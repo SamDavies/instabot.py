@@ -1,17 +1,17 @@
 import logging
 import random
-
 import time
+from threading import Timer
 
 from core.api import API
-from threading import Timer
 
 logger = logging.getLogger(__name__)
 
 
 class Bot(object):
-    def __init__(self, user):
+    def __init__(self, user, media):
         self.user = user
+        self.media = media
         self.API = API(self.user)
 
     def run(self, interval):
@@ -33,9 +33,10 @@ class Bot(object):
     def stopping_criteria(self):
         """
         This function defines the condition for stopping the infinite loop.
+        Default will loop forever.
         :return: true to stop the infinite loop
         """
-        raise NotImplementedError("A subclass of Bot needs to override the 'stopping_criteria' method")
+        return False
 
     @staticmethod
     def add_time(target_time):
@@ -47,25 +48,57 @@ class Bot(object):
 
 
 class FollowBot(Bot):
-    def __init__(self, media, user):
-        super(FollowBot, self).__init__(user)
-        # the media that should be used to follow users
-        self.media = media
+    def __init__(self, user, media):
+        super(FollowBot, self).__init__(user, media)
         # keep a list of users that I have followed
         self.follow_list = []
 
-    def get_next_media(self):
-        item = self.media.get_next_item()
-        return {
-            "owner_id": item["owner"]["id"]
-        }
-
     def epoch(self):
-        owner_id = self.get_next_media()["owner_id"]
+        owner_id = self.media.get_media()[0]["owner"]["id"]
         log_string = "Try to follow: %s" % owner_id
         logger.info(log_string)
         self.API.follow(owner_id)
         self.follow_list.append([owner_id, time.time()])
 
-    def stopping_criteria(self):
-        return False
+
+class LikeBot(Bot):
+    def __init__(self, user, media, media_max_like, media_min_like):
+        super(LikeBot, self).__init__(user, media)
+        # keep a list of users that I have followed
+        self.media_max_like = media_max_like
+        self.media_min_like = media_min_like
+
+    def epoch(self):
+        media = self.media.get_media()
+        self.API.like_all_exist_media(media, self.media_max_like, self.media_min_like, media_size=1)
+
+
+class UnfollowAllBot(Bot):
+    def __init__(self, user, media, refresh_rate):
+        super(UnfollowAllBot, self).__init__(user, media)
+        self.refresh_rate = refresh_rate
+        self.following_ids = []
+        self.get_following_list()
+
+    def get_following_list(self):
+        self.following_ids = []
+
+    def epoch(self):
+        user_id = self.following_ids[-1]
+        log_string = "Try to unfollow: %s" % user_id
+        logger.info(log_string)
+        self.API.unfollow(user_id)
+        self.following_ids = self.following_ids[:-1]
+
+
+class CommentBot(Bot):
+    def __init__(self, user, media, comment_maker):
+        super(CommentBot, self).__init__(user, media)
+        # keep a list of users that I have followed
+        self.comment_maker = comment_maker
+
+    def epoch(self):
+        item = self.media.get_media()[0]['id']
+        log_string = "Try to comment: %s" % item
+        logger.info(log_string)
+        self.API.comment(item, self.comment_maker.generate_comment())
